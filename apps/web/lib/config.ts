@@ -7,7 +7,7 @@
  * Đặt true khi đã hết hạn nộp — mọi trang tìm kiếm & QR sẽ hiện màn "đã đóng".
  * Đặt lại false để mở cổng bình thường.
  */
-export const PORTAL_CLOSED = false;
+export const PORTAL_CLOSED = true;
 
 /** Tài khoản nhận lệ phí (cố định cho mọi thí sinh). */
 export const RECEIVE = {
