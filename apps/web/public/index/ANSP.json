@@ -1,0 +1,58 @@
+[
+    {
+        "id": "c52dad858e",
+        "name": "BÙI THU TRINH",
+        "nganh": "Sư phạm Âm nhạc",
+        "dob": "01/12/2008",
+        "cccd": "017308003690"
+    },
+    {
+        "id": "f8ef5a3018",
+        "name": "NGỌC NGUYỄN",
+        "nganh": "Sư phạm Âm nhạc",
+        "dob": "15/06/2008",
+        "cccd": "025308003260"
+    },
+    {
+        "id": "5ab097d51c",
+        "name": "NGUYỄN DIỆU LINH",
+        "nganh": "Sư phạm Âm nhạc",
+        "dob": "12/02/2008",
+        "cccd": "025308003480"
+    },
+    {
+        "id": "ab1fded69a",
+        "name": "NGUYỄN PHÚC GIA BẢO",
+        "nganh": "Sư phạm Âm nhạc",
+        "dob": "01/01/2008",
+        "cccd": "025208007635"
+    },
+    {
+        "id": "c980731e85",
+        "name": "PHẠM HỮU LÂM",
+        "nganh": "Sư phạm Âm nhạc",
+        "dob": "01/01/2008",
+        "cccd": "025208010231"
+    },
+    {
+        "id": "4bf90980d7",
+        "name": "QUÁCH BẢO THƯ",
+        "nganh": "Sư phạm Âm nhạc",
+        "dob": "07/03/2008",
+        "cccd": "017308005513"
+    },
+    {
+        "id": "081077028b",
+        "name": "TẠ PHÚC BẢO",
+        "nganh": "Sư phạm Âm nhạc",
+        "dob": "13/08/2008",
+        "cccd": "025208012046"
+    },
+    {
+        "id": "49f7478da3",
+        "name": "TRẦN PHƯƠNG THÙY",
+        "nganh": "Sư phạm Âm nhạc",
+        "dob": "04/10/2008",
+        "cccd": "025308011920"
+    }
+]

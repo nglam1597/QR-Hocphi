@@ -1,0 +1,16 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\apps",
+    "\\apps\\web",
+    "\\apps\\web\\app",
+    "\\apps\\web\\data",
+    "\\apps\\web\\lib",
+    "\\apps\\web\\public",
+    "\\apps\\web\\public\\index",
+    "\\apps\\web\\scripts",
+    "\\input"
+  ],
+  "SelectedNode": "\\apps\\web\\data\\records.json",
+  "PreviewInSolutionExplorer": false
+}
