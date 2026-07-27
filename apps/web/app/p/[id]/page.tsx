@@ -52,6 +52,7 @@ export default async function DetailPage({
 
   const cccd = rec.data[COLUMN.cccd] || "";
   const dob = rec.data[COLUMN.dob] || "";
+  const sotien = rec.data[COLUMN.sotien] || "";
 
   // CCCD + ngày sinh hiển thị ở section đầu nên loại khỏi danh sách chi tiết
   const HEADER_KEYS: string[] = [COLUMN.cccd, COLUMN.dob];
@@ -127,7 +128,7 @@ export default async function DetailPage({
 
           <div className="mx-auto mt-3 flex w-fit items-baseline gap-1.5 rounded-full bg-slate-900 px-4 py-1.5 text-white">
             <span className="text-xs text-slate-300">Lệ phí</span>
-            <span className="text-base font-bold">{formatAmount(receive.amount)}</span>
+            <span className="text-base font-bold">{formatAmount(sotien)}</span>
           </div>
 
           {/* Nội dung chuyển khoản — chỉ giữ phần này để copy */}

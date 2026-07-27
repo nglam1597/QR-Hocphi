@@ -7,7 +7,7 @@
  * Đặt true khi đã hết hạn nộp — mọi trang tìm kiếm & QR sẽ hiện màn "đã đóng".
  * Đặt lại false để mở cổng bình thường.
  */
-export const PORTAL_CLOSED = true;
+export const PORTAL_CLOSED = false;
 
 /** Tài khoản nhận lệ phí (cố định cho mọi thí sinh). */
 export const RECEIVE = {
@@ -34,6 +34,7 @@ export const MA_NGANH_TO_ORG: Record<string, string> = {
   "7140206": "TCSP", // Giáo dục Thể chất
   "7140221": "ANSP", // Sư phạm Âm nhạc
   "7140222": "SPMT", // Sư phạm Mỹ thuật
+  "QR":"QR Agribank",// QR Ngân hàng
 };
 
 /**
@@ -54,6 +55,7 @@ export const COLUMN = {
   nganh: "Tên ngành",
   content: "Nội dung CK",
   photo: "anh dai dien",
+  sotien:"soTienThanhToan",
 } as const;
 
 /** Tiền tố cố định cho nội dung chuyển khoản. */

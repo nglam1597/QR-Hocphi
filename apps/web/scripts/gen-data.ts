@@ -181,6 +181,7 @@ async function main() {
     const perOrgInFile = new Map<string, number>();
 
     for (let i = 0; i < rows.length; i++) {
+      
       const data = rows[i];
       const name = data[COLUMN.name] ?? "";
       const cccd = data[COLUMN.cccd] ?? "";
@@ -191,7 +192,8 @@ async function main() {
       const photoUrl = normalizeDriveUrl(data[COLUMN.photo] ?? "");
       const nganh = data[COLUMN.nganh] ?? "";
       const dob = data[COLUMN.dob] ?? "";
-
+      const rawAmount = data[COLUMN.sotien] ?? "";
+      const amount = Number(String(rawAmount).replace(/\D/g, "")) || 0;
       // id: ưu tiên CCCD, fallback name+index để luôn duy nhất.
       // org đã suy từ Mã ngành nên một thí sinh đăng ký nhiều ngành -> nhiều id khác nhau.
       let id = makeId(org, cccd || `${name}#${i}`);
@@ -213,7 +215,7 @@ async function main() {
       const qr = await buildVietQrSvg({
         bank: RECEIVE.bankBin,
         account: RECEIVE.accountNumber,
-        amount: RECEIVE.amount,
+        amount: amount,
         content,
       });
       if (qr) {
