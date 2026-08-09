@@ -11,7 +11,7 @@ export default function PortalClosed({ orgName }: { orgName?: string }) {
         </div>
 
         <h1 className="mt-6 text-3xl font-bold leading-[1.15] tracking-tight text-slate-900">
-          Cổng thu học phí đã đóng
+          Cổng nộp lệ phí đã đóng
         </h1>
 
         <p className="mt-3 text-[15px] leading-relaxed text-slate-600">
@@ -21,17 +21,17 @@ export default function PortalClosed({ orgName }: { orgName?: string }) {
               kết thúc thời gian nhận lệ phí dự thi.
             </>
           ) : (
-            <>Đã kết thúc thời gian thu học phí.</>
+            <>Đã kết thúc thời gian nhận lệ phí dự thi.</>
           )}
         </p>
 
         <p className="mt-2 text-[15px] leading-relaxed text-slate-500">
-          Cảm ơn bạn đã hoàn tất. Chúc bạn một học kỳ thật tốt —
-          hẹn gặp bạn tại trường!
+          Cảm ơn bạn đã hoàn tất đăng ký dự thi. Chúc bạn một kỳ thi thật tốt —
+          hẹn gặp bạn tại phòng thi!
         </p>
 
         <p className="mt-8 w-full border-t border-slate-200 pt-5 text-xs font-medium text-slate-400">
-          Thu học phí 2026
+          Tuyển sinh năng khiếu 2026
         </p>
       </main>
     </div>

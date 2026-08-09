@@ -12,7 +12,7 @@ description: >-
 Mục tiêu: nạp một (hoặc nhiều) file Excel danh sách mới vào hệ thống, phân bổ
 **đúng ngành theo `Mã ngành` từng dòng**, rồi sinh lại toàn bộ `records.json`,
 index theo ngành và QR. Pipeline đã tự động — KHÔNG sửa tay JSON.
-
+0
 ## Bối cảnh cần nhớ
 - Mọi xử lý chạy trong `apps/web`. Dùng `pnpm` (workspace).
 - Nguồn dữ liệu: mọi `input/*.xlsx` (file `.xlsx` nằm trong `input/`, **gitignore** —

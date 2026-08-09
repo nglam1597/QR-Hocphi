@@ -5,6 +5,7 @@ export interface PersonRecord {
   org: string;
   content: string;
   photoUrl: string;
+  amount?: string;
   data: Record<string, string>;
 }
 

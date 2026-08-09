@@ -11,8 +11,8 @@ import ExcelJS from "exceljs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { readdirSync, existsSync } from "node:fs";
-import { MA_NGANH_TO_ORG, orgCodeForRow, COLUMN } from "../lib/config";
-import { normalize } from "../lib/text";
+import { MA_NGANH_TO_ORG, orgCodeForRow, COLUMN, matchCanonicalField } from "../lib/config";
+import { isFreeOrEmpty, normalize } from "../lib/text";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const INPUT_DIR = path.resolve(__dirname, "../../../input");
@@ -39,16 +39,40 @@ function cellToString(v: Cell): string {
   return "";
 }
 
-function findHeaderRow(ws: ExcelJS.Worksheet): number {
-  const max = Math.min(15, ws.rowCount);
-  for (let r = 1; r <= max; r++) {
-    const row = ws.getRow(r);
-    for (let c = 1; c <= ws.columnCount; c++) {
-      const n = normalize(cellToString(row.getCell(c).value));
-      if (n.includes("ho va ten") || n === "ho ten") return r;
+function getActiveWorksheet(wb: ExcelJS.Workbook): ExcelJS.Worksheet {
+  for (const ws of wb.worksheets) {
+    if (!ws) continue;
+    if (ws.rowCount > 0 || ws.actualRowCount > 0) return ws;
+    for (let r = 1; r <= 10; r++) {
+      if (ws.getRow(r).cellCount > 0) return ws;
     }
   }
-  return 1;
+  return wb.worksheets[0];
+}
+
+function findHeaderRow(ws: ExcelJS.Worksheet): number {
+  const totalRows = Math.max(ws.rowCount || 0, ws.actualRowCount || 0, 25);
+  const max = Math.min(25, totalRows);
+  let bestRow = 1;
+  let maxScore = -1;
+
+  for (let r = 1; r <= max; r++) {
+    const row = ws.getRow(r);
+    const uniqueFields = new Set<keyof typeof COLUMN>();
+    const maxCols = Math.max(ws.columnCount || 0, row.cellCount || 0, 30);
+    for (let c = 1; c <= maxCols; c++) {
+      const val = cellToString(row.getCell(c).value);
+      if (val) {
+        const field = matchCanonicalField(val);
+        if (field) uniqueFields.add(field);
+      }
+    }
+    if (uniqueFields.size > maxScore) {
+      maxScore = uniqueFields.size;
+      bestRow = r;
+    }
+  }
+  return maxScore > 0 ? bestRow : 1;
 }
 
 async function main() {
@@ -61,57 +85,84 @@ async function main() {
     process.exit(1);
   }
 
-  const required = [COLUMN.name, COLUMN.cccd, COLUMN.maNganh];
   let errors = 0;
 
   for (const file of files) {
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.readFile(path.join(INPUT_DIR, file));
-    const ws = wb.worksheets[0];
+    const ws = getActiveWorksheet(wb);
     if (!ws) { console.error(`❌ ${file}: không đọc được sheet`); errors++; continue; }
 
     const hdrIdx = findHeaderRow(ws);
     const header = ws.getRow(hdrIdx);
-    const cols = new Set<string>();
-    const colIdx = new Map<string, number>();
-    for (let c = 1; c <= ws.columnCount; c++) {
-      const name = cellToString(header.getCell(c).value);
-      if (name) { cols.add(name); if (!colIdx.has(name)) colIdx.set(name, c); }
+
+    let hoColIdx: number | null = null;
+    let tenColIdx: number | null = null;
+    let nameColIdx: number | null = null;
+    let maNganhColIdx: number | null = null;
+    let sotienColIdx: number | null = null;
+
+    const maxCols = Math.max(ws.columnCount || 0, header.cellCount || 0, 30);
+
+    for (let c = 1; c <= maxCols; c++) {
+      const origName = cellToString(header.getCell(c).value);
+      if (origName) {
+        const n = normalize(origName);
+        if (n === "ho" || n === "ho va ten dem") hoColIdx = c;
+        else if (n === "ten") tenColIdx = c;
+        else if (n.includes("ho va ten") || n.includes("ho ten") || n === "thi sinh") nameColIdx = c;
+
+        if (n.includes("ma nganh") || n === "manganh") maNganhColIdx = c;
+        if (n === "ky 2" || n.includes("ky 2") || n.includes("so tien") || n.includes("hoc phi") || n.includes("le phi")) {
+          sotienColIdx = c;
+        }
+      }
     }
 
-    const missing = required.filter((r) => !cols.has(r));
-    if (missing.length) {
-      console.error(`❌ ${file}: thiếu cột bắt buộc: ${missing.join(", ")}`);
+    const hasNameCol = hoColIdx != null || tenColIdx != null || nameColIdx != null;
+    if (!hasNameCol) {
+      console.error(`❌ ${file}: thiếu cột bắt buộc: Họ và Tên (hoặc 2 cột Họ + Tên)`);
       errors++;
     }
 
-    // Mã ngành -> org (đếm + cờ ngành lạ)
-    const mnCol = colIdx.get(COLUMN.maNganh);
+    // Mã ngành -> org
     const breakdown = new Map<string, number>();
     const unknown = new Map<string, number>();
     let nRows = 0;
-    if (mnCol) {
-      for (let r = hdrIdx + 1; r <= ws.rowCount; r++) {
-        const row = ws.getRow(r);
-        const nameCol = colIdx.get(COLUMN.name);
-        const hasName = nameCol ? cellToString(row.getCell(nameCol).value) : "";
-        const mn = cellToString(row.getCell(mnCol).value);
-        if (!hasName && !mn) continue;
-        nRows++;
-        const org = orgCodeForRow(mn, file);
-        breakdown.set(org, (breakdown.get(org) ?? 0) + 1);
-        if (!(mn in MA_NGANH_TO_ORG)) unknown.set(mn || "(rỗng)", (unknown.get(mn || "(rỗng)") ?? 0) + 1);
+
+    const lastRow = Math.max(ws.rowCount || 0, ws.actualRowCount || 0, hdrIdx + 1000);
+    for (let r = hdrIdx + 1; r <= lastRow; r++) {
+      const row = ws.getRow(r);
+      if (!row || row.cellCount === 0) continue;
+
+      let name = "";
+      if (hoColIdx != null || tenColIdx != null) {
+        const ho = hoColIdx ? cellToString(row.getCell(hoColIdx).value) : "";
+        const ten = tenColIdx ? cellToString(row.getCell(tenColIdx).value) : "";
+        name = [ho, ten].filter(Boolean).join(" ");
       }
+      if (!name && nameColIdx != null) {
+        name = cellToString(row.getCell(nameColIdx).value);
+      }
+
+      const mn = maNganhColIdx ? cellToString(row.getCell(maNganhColIdx).value) : "";
+      if (!name && !mn) continue;
+
+      const sotienVal = sotienColIdx ? cellToString(row.getCell(sotienColIdx).value) : "";
+      if (isFreeOrEmpty(sotienVal)) continue;
+
+      nRows++;
+      const org = orgCodeForRow(mn, file);
+      breakdown.set(org, (breakdown.get(org) ?? 0) + 1);
+      if (mn && !(mn in MA_NGANH_TO_ORG)) unknown.set(mn, (unknown.get(mn) ?? 0) + 1);
     }
 
     const b = [...breakdown.entries()].map(([o, n]) => `${o}:${n}`).join(", ");
     console.log(`• ${file}: ${nRows} hồ sơ -> ${b || "(?)"}`);
     if (unknown.size) {
       for (const [mn, n] of unknown) {
-        console.error(`   ⚠️  Mã ngành chưa map: "${mn}" (${n} hồ sơ) -> sẽ rơi vào org rác theo tên file.`);
-        console.error(`       Thêm vào MA_NGANH_TO_ORG trong apps/web/lib/config.ts trước khi gen:data.`);
+        console.warn(`   ⚠️  Mã ngành chưa map: "${mn}" (${n} hồ sơ) -> suy org theo tên file.`);
       }
-      errors++;
     }
   }
 

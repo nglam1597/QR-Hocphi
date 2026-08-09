@@ -98,7 +98,7 @@ export default async function DetailPage({
           </div>
           {(cccd || dob) && (
             <dl className="mt-3 divide-y divide-slate-100 border-t border-slate-100">
-              {cccd && <InfoRow label="Số CCCD" value={cccd} />}
+              {cccd && <InfoRow label="Mã sinh viên" value={cccd} />}
               {dob && <InfoRow label="Ngày sinh" value={dob} />}
             </dl>
           )}
@@ -127,7 +127,7 @@ export default async function DetailPage({
           </div>
 
           <div className="mx-auto mt-3 flex w-fit items-baseline gap-1.5 rounded-full bg-slate-900 px-4 py-1.5 text-white">
-            <span className="text-xs text-slate-300">Lệ phí</span>
+            <span className="text-xs text-slate-300">Lệ phí / Học phí</span>
             <span className="text-base font-bold">{formatAmount(sotien)}</span>
           </div>
 
@@ -146,7 +146,7 @@ export default async function DetailPage({
         </section>
 
         {/* Section 3: Thông tin chi tiết — danh sách hàng gọn */}
-       
+
       </main>
     </div>
   );

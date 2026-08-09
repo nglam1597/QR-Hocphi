@@ -42,35 +42,27 @@ export default function SearchClient({ org, orgName }: { org: string; orgName: s
     };
   }, [org]);
 
-  // index đã chuẩn hoá để tìm nhanh (theo tên + CCCD)
+  // index đã chuẩn hoá để tìm nhanh (theo tên + Mã SV/CCCD)
   const indexed = useMemo(
-    () => (items ?? []).map((it) => ({ it, n: norm(it.name), c: it.cccd ?? "" })),
+    () => (items ?? []).map((it) => ({ it, n: norm(it.name), c: norm(it.cccd ?? "") })),
     [items],
   );
 
   const q = norm(query);
-  const qDigits = query.replace(/\D/g, "");
   const results = useMemo(() => {
     if (q.length < 1) return [];
-    const isNumeric = qDigits.length >= 3 && qDigits.length === query.trim().length;
     const starts: IndexItem[] = [];
     const contains: IndexItem[] = [];
     for (const { it, n, c } of indexed) {
-      if (isNumeric) {
-        // query toàn số -> tìm theo CCCD
-        if (c.includes(qDigits)) {
-          if (c.startsWith(qDigits)) starts.push(it);
-          else contains.push(it);
-        }
-      } else if (n.startsWith(q)) {
+      if (n.startsWith(q) || c.startsWith(q)) {
         starts.push(it);
-      } else if (n.includes(q)) {
+      } else if (n.includes(q) || c.includes(q)) {
         contains.push(it);
       }
       if (starts.length + contains.length > 50) break;
     }
     return [...starts, ...contains].slice(0, 30);
-  }, [q, qDigits, query, indexed]);
+  }, [q, indexed]);
 
   return (
     <div>
@@ -84,7 +76,7 @@ export default function SearchClient({ org, orgName }: { org: string; orgName: s
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Nhập tên hoặc số CCCD…"
+            placeholder="Nhập tên hoặc Mã SV…"
             disabled={!items && !error}
             className="w-full rounded-2xl border border-slate-200 bg-white py-3.5 pl-11 pr-4 text-base text-slate-900 shadow-sm outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-900/5 disabled:opacity-60"
           />
@@ -106,7 +98,7 @@ export default function SearchClient({ org, orgName }: { org: string; orgName: s
 
       {items && query.trim().length === 0 && (
         <p className="mt-10 text-center text-sm text-slate-400">
-          Gõ tên hoặc số CCCD để tìm hồ sơ trong ngành {orgName}.
+          Gõ tên hoặc Mã SV để tìm hồ sơ trong ngành {orgName}.
         </p>
       )}
 
@@ -136,7 +128,7 @@ export default function SearchClient({ org, orgName }: { org: string; orgName: s
                 </span>
                 {it.cccd && (
                   <span className="mt-1.5 inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[11px] tracking-wide text-slate-500">
-                    CCCD {it.cccd}
+                    Mã SV: {it.cccd}
                   </span>
                 )}
               </span>

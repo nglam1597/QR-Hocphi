@@ -14,8 +14,8 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { readdirSync, writeFileSync, mkdirSync, rmSync, existsSync } from "node:fs";
 import { buildVietQrSvg } from "../lib/vietqr";
-import { RECEIVE, orgCodeForRow, COLUMN, buildCkContent } from "../lib/config";
-import { normalize } from "../lib/text";
+import { RECEIVE, orgCodeForRow, COLUMN, buildCkContent, matchCanonicalField } from "../lib/config";
+import { digitsOnly, isFreeOrEmpty, normalize } from "../lib/text";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const INPUT_DIR = path.resolve(__dirname, "../../../input");
@@ -37,7 +37,6 @@ function cellToString(v: Cell): string {
     if (Array.isArray(o.richText)) {
       return (o.richText as { text: string }[]).map((r) => r.text).join("").trim();
     }
-    // ô công thức: lấy kết quả (có thể lồng nhau); lỗi -> rỗng
     if ("result" in o) {
       const res = o.result;
       if (res == null || (typeof res === "object" && "error" in (res as object))) return "";
@@ -45,35 +44,46 @@ function cellToString(v: Cell): string {
     }
     if ("error" in o) return "";
     if ("hyperlink" in o && typeof o.hyperlink === "string") return o.hyperlink.trim();
-    // object lạ -> rỗng, KHÔNG trả "[object Object]"
     return "";
   }
   return String(v).trim();
 }
 
-/** Tìm dòng header: dòng đầu tiên (trong 15 dòng đầu) có ô chứa "họ và tên". */
-function findHeaderRow(ws: ExcelJS.Worksheet): number {
-  const max = Math.min(15, ws.rowCount);
-  let fallback = 1;
-  let fallbackDistinct = 0;
-  for (let r = 1; r <= max; r++) {
-    const row = ws.getRow(r);
-    const values = new Set<string>();
-    for (let c = 1; c <= ws.columnCount; c++) {
-      const t = cellToString(row.getCell(c).value);
-      if (t) values.add(t);
-    }
-    const hasName = [...values].some((v) => {
-      const n = normalize(v);
-      return n.includes("ho va ten") || n === "ho ten";
-    });
-    if (hasName) return r;
-    if (values.size > fallbackDistinct) {
-      fallbackDistinct = values.size;
-      fallback = r;
+function getActiveWorksheet(wb: ExcelJS.Workbook): ExcelJS.Worksheet {
+  for (const ws of wb.worksheets) {
+    if (!ws) continue;
+    if (ws.rowCount > 0 || ws.actualRowCount > 0) return ws;
+    for (let r = 1; r <= 10; r++) {
+      if (ws.getRow(r).cellCount > 0) return ws;
     }
   }
-  return fallback;
+  return wb.worksheets[0];
+}
+
+/** Tìm dòng header: dòng chứa nhiều cột chuẩn nhất (Mã SV, Họ/Tên, Ngày sinh, Mã ngành...). */
+function findHeaderRow(ws: ExcelJS.Worksheet): number {
+  const totalRows = Math.max(ws.rowCount || 0, ws.actualRowCount || 0, 25);
+  const max = Math.min(25, totalRows);
+  let bestRow = 1;
+  let maxScore = -1;
+
+  for (let r = 1; r <= max; r++) {
+    const row = ws.getRow(r);
+    const uniqueFields = new Set<keyof typeof COLUMN>();
+    const maxCols = Math.max(ws.columnCount || 0, row.cellCount || 0, 30);
+    for (let c = 1; c <= maxCols; c++) {
+      const val = cellToString(row.getCell(c).value);
+      if (val) {
+        const field = matchCanonicalField(val);
+        if (field) uniqueFields.add(field);
+      }
+    }
+    if (uniqueFields.size > maxScore) {
+      maxScore = uniqueFields.size;
+      bestRow = r;
+    }
+  }
+  return maxScore > 0 ? bestRow : 1;
 }
 
 interface ParsedFile {
@@ -84,34 +94,93 @@ interface ParsedFile {
 async function parseFile(file: string): Promise<ParsedFile> {
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(file);
-  const ws = wb.worksheets[0];
+  const ws = getActiveWorksheet(wb);
   if (!ws) return { columns: [], rows: [] };
 
   const headerRowIdx = findHeaderRow(ws);
   const headerRow = ws.getRow(headerRowIdx);
 
-  // col index (1-based) -> tên cột
-  const colName = new Map<number, string>();
+  const colNameMap = new Map<number, string>();
   const columns: string[] = [];
-  for (let c = 1; c <= ws.columnCount; c++) {
-    const name = cellToString(headerRow.getCell(c).value);
-    if (name && !colName.has(c)) {
-      colName.set(c, name);
-      if (!columns.includes(name)) columns.push(name);
+
+  let hoColIdx: number | null = null;
+  let tenColIdx: number | null = null;
+  let nameColIdx: number | null = null;
+  let masvColIdx: number | null = null;
+  let dobColIdx: number | null = null;
+  let maNganhColIdx: number | null = null;
+  let nganhColIdx: number | null = null;
+  let sotienColIdx: number | null = null;
+
+  const maxCols = Math.max(ws.columnCount || 0, headerRow.cellCount || 0, 30);
+  for (let c = 1; c <= maxCols; c++) {
+    const origName = cellToString(headerRow.getCell(c).value);
+    if (!origName) continue;
+
+    colNameMap.set(c, origName);
+    if (!columns.includes(origName)) columns.push(origName);
+
+    const n = normalize(origName);
+    if (n === "ho" || n === "ho va ten dem") hoColIdx = c;
+    else if (n === "ten") tenColIdx = c;
+    else if (n.includes("ho va ten") || n.includes("ho ten") || n === "thi sinh") nameColIdx = c;
+
+    if (n === "ma sv" || n === "msv" || n.includes("ma sinh vien") || n.includes("cccd") || n.includes("sbd")) {
+      masvColIdx = c;
+    }
+    if (n.includes("ngay sinh") || n === "dob" || n === "ns") dobColIdx = c;
+    if (n.includes("ma nganh") || n === "manganh") maNganhColIdx = c;
+    if (n.includes("ten nganh") || n === "nganh") nganhColIdx = c;
+    if (n === "ky 2" || n.includes("ky 2") || n.includes("so tien") || n.includes("hoc phi") || n.includes("le phi")) {
+      sotienColIdx = c;
     }
   }
 
+  // Đảm bảo có cột "Họ và Tên" trong danh sách columns hiển thị
+  if (!columns.includes(COLUMN.name)) {
+    columns.unshift(COLUMN.name);
+  }
+
   const rows: Record<string, string>[] = [];
-  for (let r = headerRowIdx + 1; r <= ws.rowCount; r++) {
+  const lastRow = Math.max(ws.rowCount || 0, ws.actualRowCount || 0, headerRowIdx + 1000);
+
+  for (let r = headerRowIdx + 1; r <= lastRow; r++) {
     const row = ws.getRow(r);
+    if (!row || row.cellCount === 0) continue;
     const obj: Record<string, string> = {};
     let hasValue = false;
-    for (const [c, name] of colName) {
+
+    for (const [c, origName] of colNameMap) {
       const val = cellToString(row.getCell(c).value);
       if (val) hasValue = true;
-      obj[name] = val;
+      obj[origName] = val;
     }
-    if (hasValue) rows.push(obj);
+
+    if (!hasValue) continue;
+
+    // Bỏ qua nếu cột "Kỳ 2" bị rỗng, 0 hoặc miễn phí
+    const sotienVal = sotienColIdx ? cellToString(row.getCell(sotienColIdx).value) : (obj[COLUMN.sotien] ?? obj["Kỳ 2"] ?? obj["Ky 2"] ?? "");
+    if (isFreeOrEmpty(sotienVal)) continue;
+
+    // Gộp "Họ" + "Tên" nếu tách biệt
+    let fullName = "";
+    if (hoColIdx != null || tenColIdx != null) {
+      const ho = hoColIdx ? cellToString(row.getCell(hoColIdx).value) : "";
+      const ten = tenColIdx ? cellToString(row.getCell(tenColIdx).value) : "";
+      fullName = [ho, ten].filter(Boolean).join(" ");
+    }
+    if (!fullName && nameColIdx != null) {
+      fullName = cellToString(row.getCell(nameColIdx).value);
+    }
+
+    obj[COLUMN.name] = fullName || obj[COLUMN.name] || "";
+    if (masvColIdx != null) obj[COLUMN.cccd] = cellToString(row.getCell(masvColIdx).value);
+    if (dobColIdx != null) obj[COLUMN.dob] = cellToString(row.getCell(dobColIdx).value);
+    if (maNganhColIdx != null) obj[COLUMN.maNganh] = cellToString(row.getCell(maNganhColIdx).value);
+    if (nganhColIdx != null) obj[COLUMN.nganh] = cellToString(row.getCell(nganhColIdx).value);
+    if (sotienColIdx != null) obj[COLUMN.sotien] = sotienVal;
+
+    rows.push(obj);
   }
   return { columns, rows };
 }
@@ -140,8 +209,8 @@ async function main() {
   const dataExists = existsSync(path.join(DATA_DIR, "records.json"));
   const files = existsSync(INPUT_DIR)
     ? readdirSync(INPUT_DIR)
-        .filter((f) => /\.xlsx?$/i.test(f) && !f.startsWith("~$"))
-        .sort()
+      .filter((f) => /\.xlsx?$/i.test(f) && !f.startsWith("~$"))
+      .sort()
     : [];
 
   // Không có Excel: nếu đã có dữ liệu commit sẵn (vd khi build trên CI/Vercel)
@@ -181,7 +250,6 @@ async function main() {
     const perOrgInFile = new Map<string, number>();
 
     for (let i = 0; i < rows.length; i++) {
-      
       const data = rows[i];
       const name = data[COLUMN.name] ?? "";
       const cccd = data[COLUMN.cccd] ?? "";
@@ -194,6 +262,7 @@ async function main() {
       const dob = data[COLUMN.dob] ?? "";
       const rawAmount = data[COLUMN.sotien] ?? "";
       const amount = Number(String(rawAmount).replace(/\D/g, "")) || 0;
+
       // id: ưu tiên CCCD, fallback name+index để luôn duy nhất.
       // org đã suy từ Mã ngành nên một thí sinh đăng ký nhiều ngành -> nhiều id khác nhau.
       let id = makeId(org, cccd || `${name}#${i}`);
