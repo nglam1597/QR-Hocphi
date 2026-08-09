@@ -11,7 +11,7 @@ export const PORTAL_CLOSED = false;
 export const RECEIVE = {
   bankBin: "970405", // Agribank
   bankName: "Agribank",
-  accountNumber: "2700201005338",
+  accountNumber: "2700668838899",
   /** Số tiền mặc định (đồng). Nếu rỗng sẽ lấy từ file Excel hoặc người chuyển tự nhập. */
   amount: "300000",
 } as const;
@@ -37,7 +37,7 @@ export function orgCodeFromFile(filename: string): string {
 
 /** Map Mã ngành -> Tên viết tắt Org. */
 export const MA_NGANH_TO_ORG: Record<string, string> = {
-  "7140201": "CCYT",
+  "7140201": "VLTL",
   "7140206": "TCSP",
   "7140221": "ANSP",
   "7140222": "SPMT",
